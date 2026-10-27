@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayFlow | Payments Made Simple</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f4f6fb;
+            color: #20243a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 460px;
+            background: white;
+            padding: 32px;
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(30, 40, 80, 0.10);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #5145e5;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #73788c;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #d9ddeb;
+            border-radius: 9px;
+            font-size: 16px;
+            margin-bottom: 18px;
+        }
+
+        button {
+            width: 100%;
+            border: none;
+            border-radius: 9px;
+            padding: 14px;
+            background: #5145e5;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #4035c5;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 18px;
+            padding: 13px;
+            border-radius: 9px;
+            background: #f1f2f8;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .order-details {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e7e9f1;
+        }
+
+        .detail {
+            margin: 12px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            font-weight: bold;
+            color: #5145e5;
+        }
+
+        .pay-button {
+            margin-top: 12px;
+            background: #15966a;
+        }
+
+        .pay-button:hover {
+            background: #107a56;
+        }
+
+        .note {
+            font-size: 12px;
+            color: #777d90;
+            margin-top: 22px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <div class="logo">PayFlow.</div>
+
+        <h2>Make a payment</h2>
+
+        <p class="subtitle">
+            Create a payment order and track its status.
+        </p>
+
+        <form id="paymentForm">
+            <label for="amount">Payment amount (₹)</label>
+
+            <input
+                id="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Enter amount"
+                required
+            >
+
+            <button id="createButton" type="submit">
+                Create Order
+            </button>
+        </form>
+
+        <div id="message" class="message hidden"></div>
+
+        <section id="orderDetails" class="order-details hidden">
+            <h3>Order Details</h3>
+
+            <p class="detail">
+                <strong>Order ID:</strong>
+                <span id="orderId"></span>
+            </p>
+
+            <p class="detail">
+                <strong>Amount:</strong>
+                ₹<span id="orderAmount"></span>
+            </p>
+
+            <p class="detail">
+                <strong>Status:</strong>
+                <span id="orderStatus" class="status"></span>
+            </p>
+
+            <p class="detail">
+                <strong>Paid At:</strong>
+                <span id="paidAt">Not paid yet</span>
+            </p>
+
+            <button id="payButton" class="pay-button" type="button">
+                Simulate Payment
+            </button>
+        </section>
+
+        <p class="note">
+            PayFlow learning project · Simulated payments only
+        </p>
+    </main>
+
+    <script>
+        const API_URL = "http://localhost:8080/api/payments";
+
+        let currentOrderId = null;
+
+        const form = document.getElementById("paymentForm");
+        const amountInput = document.getElementById("amount");
+        const message = document.getElementById("message");
+        const createButton = document.getElementById("createButton");
+        const payButton = document.getElementById("payButton");
+        const orderDetails = document.getElementById("orderDetails");
+
+        function showMessage(text) {
+            message.textContent = text;
+            message.classList.remove("hidden");
+        }
+
+        function showError(error) {
+            showMessage("Something went wrong: " + error.message);
+        }
+
+        function displayOrder(order) {
+            currentOrderId = order.orderId;
+
+            document.getElementById("orderId").textContent = order.orderId;
+            document.getElementById("orderAmount").textContent = order.amount;
+            document.getElementById("orderStatus").textContent = order.status;
+            document.getElementById("paidAt").textContent =
+                order.paidAt || "Not paid yet";
+
+            orderDetails.classList.remove("hidden");
+
+            payButton.disabled =
+                order.status === "PAID" || order.status === "FAILED";
+
+            payButton.textContent =
+                order.status === "PAID" ? "Payment Completed" :
+                order.status === "FAILED" ? "Payment Failed" :
+                "Simulate Payment";
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const amount = Number(amountInput.value);
+
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showMessage("Please enter an amount greater than zero.");
+                return;
+            }
+
+            createButton.disabled = true;
+            showMessage("Creating your order...");
+
+            try {
+                const response = await fetch(API_URL + "/orders", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ amount: amount })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const order = await response.json();
+
+                displayOrder(order);
+                showMessage("Order created successfully!");
+                amountInput.value = "";
+            } catch (error) {
+                showError(error);
+            } finally {
+                createButton.disabled = false;
+            }
+        });
+
+        payButton.addEventListener("click", async function () {
+            if (!currentOrderId) {
+                showMessage("Please create an order first.");
+                return;
+            }
+
+            payButton.disabled = true;
+            showMessage("Processing simulated payment...");
+
+            try {
+                const response = await fetch(
+                    API_URL + "/" + encodeURIComponent(currentOrderId) + "/process",
+                    { method: "POST" }
+                );
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const order = await response.json();
+
+                displayOrder(order);
+                showMessage("Payment processed successfully!");
+            } catch (error) {
+                showError(error);
+                payButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
