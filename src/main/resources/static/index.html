@@ -326,8 +326,9 @@ body {
         </p>
     </main>
 
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
-        const API_URL = "http://localhost:8080/api/payments";
+        const API_URL = "/api/payments";
 
         let currentOrderId = null;
 
@@ -405,34 +406,68 @@ body {
             }
         });
 
-        payButton.addEventListener("click", async function () {
-            if (!currentOrderId) {
-                showMessage("Please create an order first.");
-                return;
-            }
+       
+payButton.addEventListener("click", async function () {
+    if (!currentOrderId) {
+        showMessage("Please create an order first.");
+        return;
+    }
 
-            payButton.disabled = true;
-            showMessage("Processing simulated payment...");
+    payButton.disabled = true;
+    showMessage("Preparing Razorpay checkout...");
 
-            try {
-                const response = await fetch(
-                    API_URL + "/" + encodeURIComponent(currentOrderId) + "/process",
-                    { method: "POST" }
+    try {
+        // Create a Razorpay order through our backend
+        const response = await fetch(
+            API_URL + "/" + encodeURIComponent(currentOrderId) + "/razorpay-order",
+            { method: "POST" }
+        );
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        const razorpayOrder = await response.json();
+
+        // Open Razorpay's payment window
+        const options = {
+            key: razorpayOrder.keyId,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            name: "PayFlow",
+            description: "Payment for order " + currentOrderId,
+            order_id: razorpayOrder.providerOrderId,
+
+            handler: function (paymentResponse) {
+                showMessage(
+                    "Razorpay returned a payment response.\n" +
+                    "Payment ID: " + paymentResponse.razorpay_payment_id +
+                    "\nSignature verification is still required on the backend."
                 );
-
-                if (!response.ok) {
-                    throw new Error(await response.text());
-                }
-
-                const order = await response.json();
-
-                displayOrder(order);
-                showMessage("Payment processed successfully!");
-            } catch (error) {
-                showError(error);
                 payButton.disabled = false;
+            },
+
+            modal: {
+                ondismiss: function () {
+                    showMessage("Checkout closed. Your order has not been marked as paid.");
+                    payButton.disabled = false;
+                }
+            },
+
+            theme: {
+                color: "#5145e5"
             }
-        });
+        };
+
+        const checkout = new Razorpay(options);
+        checkout.open();
+
+    } catch (error) {
+        showError(error);
+        payButton.disabled = false;
+    }
+});
+
         async function loadPaymentHistory() {
     const tableBody = document.getElementById("paymentHistoryBody");
     const message = document.getElementById("paymentHistoryMessage");

@@ -22,8 +22,13 @@ public class PaymentOrder {
     private String currency;
 
     private String status;
-    private java.time.LocalDateTime paidAt;
+private java.time.LocalDateTime paidAt;
 
+@Column(unique = true)
+private String providerOrderId;
+
+@Column(unique = true)
+private String providerPaymentId;
     public PaymentOrder() {
     }
 
@@ -59,5 +64,20 @@ public class PaymentOrder {
 
 public void setPaidAt(java.time.LocalDateTime paidAt) {
     this.paidAt = paidAt;
+}
+public String getProviderOrderId() {
+    return providerOrderId;
+}
+
+public void setProviderOrderId(String providerOrderId) {
+    this.providerOrderId = providerOrderId;
+}
+
+public String getProviderPaymentId() {
+    return providerPaymentId;
+}
+
+public void setProviderPaymentId(String providerPaymentId) {
+    this.providerPaymentId = providerPaymentId;
 }
 }
